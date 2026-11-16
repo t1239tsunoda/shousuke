@@ -1,0 +1,1534 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>SHOSUKE（商大附スケジュール手帳）</title>
+
+  <!-- スマホのホーム画面に追加したときに全画面アプリ（PWA風）として動作させる設定 -->
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="SHOSUKE" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="theme-color" content="#2563EB" />
+
+  <!-- アプリアイコン（SVGデータURIで単一ファイル完結） -->
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 120'%3E%3Crect width='120' height='120' rx='28' fill='%232563EB'/%3E%3Ccircle cx='60' cy='60' r='42' fill='%23FFFFFF'/%3E%3Cpolygon points='60,26 52,60 68,60' fill='%23EF4444'/%3E%3Cpolygon points='60,94 52,60 68,60' fill='%233B82F6'/%3E%3Ccircle cx='60' cy='60' r='5' fill='%23FBBF24'/%3E%3C/svg%3E" />
+  <link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 120'%3E%3Crect width='120' height='120' rx='28' fill='%232563EB'/%3E%3Ccircle cx='60' cy='60' r='42' fill='%23FFFFFF'/%3E%3Cpolygon points='60,26 52,60 68,60' fill='%23EF4444'/%3E%3Cpolygon points='60,94 52,60 68,60' fill='%233B82F6'/%3E%3Ccircle cx='60' cy='60' r='5' fill='%23FBBF24'/%3E%3C/svg%3E" />
+
+  <!-- Tailwind CSS & Google Fonts (Inter / Noto Sans JP) -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&family=Noto+Sans+JP:wght@400;500;700;900&display=swap" rel="stylesheet" />
+
+  <style>
+    body {
+      font-family: 'Inter', 'Noto Sans JP', sans-serif;
+      -webkit-tap-highlight-color: transparent;
+    }
+    /* 横スクロールバー非表示（タグ一覧用） */
+    .no-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+    .no-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+  </style>
+</head>
+<body class="bg-slate-100 text-slate-800 flex justify-center min-h-screen">
+
+  <!-- スマホアプリ風メインコンテナ（最大幅480px） -->
+  <div id="app" class="w-full max-w-[480px] bg-sky-50/50 min-h-screen flex flex-col relative shadow-xl border-x border-blue-100">
+    
+    <!-- 上部固定ヘッダー -->
+    <header class="sticky top-0 z-20 bg-white/95 backdrop-blur-md border-b border-blue-100 px-3.5 py-2.5 flex items-center justify-between gap-2">
+      <div class="flex items-center gap-2 min-w-0">
+        <div class="w-8 h-8 rounded-xl bg-gradient-to-tr from-blue-600 to-sky-400 flex items-center justify-center text-white font-extrabold shadow-xs shrink-0">
+          🧭
+        </div>
+        <div class="min-w-0">
+          <div class="flex items-center gap-1.5">
+            <p class="text-[9px] font-bold text-blue-600 leading-none tracking-wider truncate">
+              高崎商科大学附属高等学校
+            </p>
+            <span class="text-[8px] font-extrabold bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded">
+              自主・自立
+            </span>
+          </div>
+          <h1 class="text-xs sm:text-sm font-extrabold text-blue-950 tracking-tight leading-tight truncate mt-0.5">
+            SHOSUKE（商大附スケジュール手帳）
+          </h1>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-1.5 shrink-0">
+        <button onclick="openModal('installModal')" class="px-2 py-1.5 rounded-xl bg-sky-50 hover:bg-sky-100 text-blue-700 border border-blue-100 text-[10px] font-extrabold transition">
+          📱 アプリ化
+        </button>
+        <button onclick="openModal('profileModal')" class="px-2 py-1.5 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-100 text-[10px] font-extrabold transition">
+          👤 設定
+        </button>
+      </div>
+    </header>
+
+    <!-- メインコンテンツ描画エリア -->
+    <main id="mainContent" class="flex-1 p-4 pb-24 overflow-y-auto"></main>
+
+    <!-- 下部固定タブバー（ホーム・勉強・宿題・テスト・手帳・記録） -->
+    <nav class="fixed bottom-0 w-full max-w-[480px] bg-white border-t border-blue-100 px-1.5 py-1.5 z-30 shadow-[0_-4px_12px_rgba(0,0,0,0.03)]">
+      <div id="bottomNav" class="grid grid-cols-6 gap-0.5"></div>
+    </nav>
+  </div>
+
+  <!-- ==========================================
+       モーダル①：個人プロフィール＆バックアップ管理
+       ========================================== -->
+  <div id="profileModal" class="hidden fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4">
+    <div class="bg-white w-full max-w-[480px] max-h-[90vh] rounded-t-3xl sm:rounded-3xl shadow-2xl border border-blue-100 flex flex-col overflow-hidden">
+      <div class="bg-gradient-to-r from-blue-600 to-sky-500 text-white px-4 py-3.5 flex items-center justify-between shrink-0">
+        <div>
+          <h2 class="text-sm font-extrabold">👤 マイページ・バックアップ管理</h2>
+          <p class="text-[10px] text-blue-100">個人プロフィール設定とデータの書き出し・復元</p>
+        </div>
+        <button onclick="closeModal('profileModal')" class="px-2.5 py-1 rounded-xl bg-white/20 hover:bg-white/30 text-xs font-bold">✕</button>
+      </div>
+
+      <div class="p-4 overflow-y-auto space-y-4">
+        <!-- プロフィール設定フォーム -->
+        <form onsubmit="saveProfile(event)" class="bg-blue-50/60 p-4 rounded-2xl border border-blue-100 space-y-3">
+          <div class="flex items-center justify-between">
+            <h3 class="text-xs font-extrabold text-blue-900">① 生徒プロフィール設定</h3>
+            <span id="profileSavedBadge" class="hidden text-[11px] font-bold text-emerald-600">✓ 保存しました！</span>
+          </div>
+
+          <div class="grid grid-cols-3 gap-2">
+            <div>
+              <label class="text-[10px] font-bold text-slate-500 block mb-1">学年</label>
+              <select id="profGrade" class="w-full bg-white text-slate-800 text-xs font-bold rounded-xl px-2.5 py-2 border border-blue-100 outline-none">
+                <option value="1年">1年</option>
+                <option value="2年">2年</option>
+                <option value="3年">3年</option>
+              </select>
+            </div>
+            <div>
+              <label class="text-[10px] font-bold text-slate-500 block mb-1">クラス</label>
+              <select id="profClass" class="w-full bg-white text-slate-800 text-xs font-bold rounded-xl px-2.5 py-2 border border-blue-100 outline-none">
+                <option value="1組">1組</option><option value="2組">2組</option><option value="3組">3組</option>
+                <option value="4組">4組</option><option value="5組">5組</option><option value="6組">6組</option>
+                <option value="7組">7組</option><option value="8組">8組</option><option value="9組">9組</option>
+                <option value="10組">10組</option>
+              </select>
+            </div>
+            <div>
+              <label class="text-[10px] font-bold text-slate-500 block mb-1">出席番号</label>
+              <input id="profNumber" type="text" placeholder="例：15番" class="w-full bg-white text-slate-800 text-xs font-bold rounded-xl px-2.5 py-2 border border-blue-100 outline-none" />
+            </div>
+          </div>
+
+          <div class="grid grid-cols-2 gap-2">
+            <div>
+              <label class="text-[10px] font-bold text-slate-500 block mb-1">ニックネーム / 名前</label>
+              <input id="profNickname" type="text" placeholder="例：商大附生" class="w-full bg-white text-slate-800 text-xs font-bold rounded-xl px-3 py-2 border border-blue-100 outline-none" />
+            </div>
+            <div>
+              <label class="text-[10px] font-bold text-slate-500 block mb-1">部活・委員会・コース</label>
+              <input id="profClub" type="text" placeholder="例：吹奏楽部 / 商業科" class="w-full bg-white text-slate-800 text-xs font-bold rounded-xl px-3 py-2 border border-blue-100 outline-none" />
+            </div>
+          </div>
+
+          <button type="submit" class="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow-xs transition">
+            プロフィールを保存する
+          </button>
+        </form>
+
+        <!-- データバックアップ（JSON書き出し＆復元） -->
+        <div class="bg-white p-4 rounded-2xl border border-blue-100 space-y-3">
+          <div>
+            <h3 class="text-xs font-extrabold text-slate-800">② 手帳データのバックアップ（書き出し・復元）</h3>
+            <p class="text-[11px] text-slate-500 mt-1 leading-relaxed">
+              データはすべて自分のスマホ本体（localStorage）に自動保存されます。機種変更や履歴削除に備えて、ファイルとして保存・復元ができます。
+            </p>
+          </div>
+
+          <div class="grid grid-cols-2 gap-2">
+            <button type="button" onclick="exportBackup()" class="py-2.5 px-3 bg-blue-50 hover:bg-blue-100 text-blue-700 font-extrabold text-xs rounded-xl border border-blue-200 transition">
+              📥 データを書き出す
+            </button>
+            <button type="button" onclick="document.getElementById('importFileInput').click()" class="py-2.5 px-3 bg-slate-50 hover:bg-slate-100 text-slate-700 font-extrabold text-xs rounded-xl border border-slate-200 transition">
+              📤 ファイルから復元
+            </button>
+            <input id="importFileInput" type="file" accept=".json,application/json" onchange="importBackup(event)" class="hidden" />
+          </div>
+          <p id="backupStatusMsg" class="hidden text-[11px] font-bold text-blue-700 bg-blue-50 px-3 py-2 rounded-xl"></p>
+        </div>
+
+        <!-- アプリ本体（index.html）の直接ダウンロード -->
+        <div class="bg-sky-50/70 p-4 rounded-2xl border border-blue-100 space-y-2.5">
+          <div>
+            <h3 class="text-xs font-extrabold text-blue-900">③ アプリ本体（index.html）のダウンロード</h3>
+            <p class="text-[11px] text-slate-600 mt-1 leading-relaxed">
+              Netlify DropやGitHub Pagesなどで公開するための単一HTMLファイル（index.html）を直接ダウンロードします。
+            </p>
+          </div>
+          <button type="button" onclick="downloadAppHtml()" class="w-full py-2.5 px-3 bg-gradient-to-r from-blue-600 to-sky-500 hover:from-blue-700 hover:to-sky-600 text-white font-extrabold text-xs rounded-xl shadow-xs transition">
+            📄 index.html をダウンロードする
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==========================================
+       モーダル②：スマホアプリ化（ホーム画面追加）ガイド
+       ========================================== -->
+  <div id="installModal" class="hidden fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4">
+    <div class="bg-white w-full max-w-[480px] max-h-[90vh] rounded-t-3xl sm:rounded-3xl shadow-2xl border border-blue-100 flex flex-col overflow-hidden">
+      <div class="bg-gradient-to-r from-blue-600 to-sky-500 text-white px-4 py-3.5 flex items-center justify-between shrink-0">
+        <div>
+          <h2 class="text-sm font-extrabold">📱 スマホアプリとして使う方法</h2>
+          <p class="text-[10px] text-blue-100">ホーム画面に追加すると全画面アプリで起動します</p>
+        </div>
+        <button onclick="closeModal('installModal')" class="px-2.5 py-1 rounded-xl bg-white/20 hover:bg-white/30 text-xs font-bold">✕</button>
+      </div>
+
+      <div class="p-4 overflow-y-auto space-y-3.5 text-xs text-slate-700">
+        <div class="bg-blue-50/70 p-3.5 rounded-2xl border border-blue-100 space-y-1.5">
+          <p class="font-extrabold text-blue-900">🍎 iPhone（Safari）の場合</p>
+          <ol class="list-decimal list-inside space-y-1 text-[11px] leading-relaxed">
+            <li>Safariでこのページを開きます。</li>
+            <li>画面下の<strong>共有ボタン（□に↑）</strong>をタップします。</li>
+            <li>下にスクロールして<strong>「ホーム画面に追加」</strong>をタップします。</li>
+            <li>右上の<strong>「追加」</strong>を押すと、ホーム画面に「SHOSUKE」アイコンが作成されます！</li>
+          </ol>
+        </div>
+
+        <div class="bg-emerald-50/70 p-3.5 rounded-2xl border border-emerald-100 space-y-1.5">
+          <p class="font-extrabold text-emerald-900">🤖 Android（Chrome）の場合</p>
+          <ol class="list-decimal list-inside space-y-1 text-[11px] leading-relaxed">
+            <li>Chromeでこのページを開きます。</li>
+            <li>画面右上のメニュー<strong>（︙）</strong>をタップします。</li>
+            <li><strong>「アプリをインストール」</strong>または<strong>「ホーム画面に追加」</strong>をタップします。</li>
+            <li>確認画面で<strong>「追加」</strong>を押すとアプリとして使えるようになります！</li>
+          </ol>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==========================================
+       JavaScript：状態管理・localStorage保存・全画面レンダリング
+       ========================================== -->
+  <script>
+    // ------------------------------------------
+    // 1. 日付ユーティリティ関数
+    // ------------------------------------------
+    function getTodayDate() {
+      const d = new Date();
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return `${y}-${m}-${day}`;
+    }
+
+    function getOffsetDate(days) {
+      const d = new Date();
+      d.setDate(d.getDate() + days);
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return `${y}-${m}-${day}`;
+    }
+
+    function calculateDaysLeft(targetDateStr) {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const target = new Date(targetDateStr);
+      target.setHours(0, 0, 0, 0);
+      return Math.ceil((target - today) / (1000 * 60 * 60 * 24));
+    }
+
+    function formatShortDate(dateStr) {
+      const parts = dateStr.split('-');
+      if (parts.length !== 3) return dateStr;
+      return `${parseInt(parts[1], 10)}/${parseInt(parts[2], 10)}`;
+    }
+
+    function escapeHtml(str) {
+      if (!str) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+
+    // ------------------------------------------
+    // 2. アプリ全体のデータ状態（localStorage連携）
+    // ------------------------------------------
+    function loadJSON(key, fallback) {
+      try {
+        const saved = localStorage.getItem(key);
+        return saved ? JSON.parse(saved) : fallback;
+      } catch (e) {
+        return fallback;
+      }
+    }
+
+    const state = {
+      activeTab: 'home',       // 'home' | 'study' | 'homework' | 'test' | 'calendar' | 'record'
+      testSubTab: 'tests',     // 'tests' | 'goals' | 'reflect'
+      recordSubTab: 'sleep',   // 'sleep' | 'mood' | 'ai'
+      journalTag: '#今日の気づき',
+      isEditingGoal: false,
+      reflectRating: 'achieved',
+      selectedMood: 'happy',
+      // カレンダー状態
+      calYear: new Date().getFullYear(),
+      calMonth: new Date().getMonth(), // 0-11
+      selectedCalDate: getTodayDate(),
+      calFilter: 'all',
+
+      // 保存データ群
+      userProfile: loadJSON('hsc_userProfile', {
+        grade: '1年',
+        className: '1組',
+        number: '1番',
+        nickname: '商大附生',
+        club: '未設定'
+      }),
+      mainGoal: localStorage.getItem('hsc_mainGoal') || '自分で決めた計画をやり抜き、昨日の自分を超える！',
+      studyTasks: loadJSON('hsc_studyTasks', [
+        { id: 1, subject: '数学ⅠA', title: 'チャート式 例題15〜20', date: getTodayDate(), completed: true },
+        { id: 2, subject: '英語', title: 'ターゲット1900 単語テスト範囲', date: getTodayDate(), completed: false },
+        { id: 3, subject: '現代文', title: '漢字ドリル p.24-25', date: getOffsetDate(1), completed: false }
+      ]),
+      homeworks: loadJSON('hsc_homeworks', [
+        { id: 101, subject: '物理基礎', title: '実験レポート提出', dueDate: getOffsetDate(2), completed: false },
+        { id: 102, subject: '世界史', title: 'ワーク p.40まで', dueDate: getOffsetDate(5), completed: false }
+      ]),
+      tests: loadJSON('hsc_tests', [
+        { id: 201, name: '2学期 期末考査', date: getOffsetDate(14), goal: '全教科平均80点以上！', targetScore: '420点 / 500点', achieved: false },
+        { id: 202, name: '全商簿記検定', date: getOffsetDate(25), goal: '仕訳問題を毎日10問解く', targetScore: '2級合格', achieved: false }
+      ]),
+      personalGoals: loadJSON('hsc_personalGoals', [
+        { id: 401, category: 'テスト目標', title: '数学ⅠAで85点以上をとる', deadline: getOffsetDate(14), completed: false },
+        { id: 402, category: '生活習慣', title: '毎日23時半までにスマホを置いて寝る', deadline: getOffsetDate(7), completed: false }
+      ]),
+      goalReflections: loadJSON('hsc_goalReflections', [
+        {
+          id: 501,
+          date: getOffsetDate(-2),
+          targetText: '毎日2時間以上机に向かう！',
+          rating: 'achieved',
+          comment: '部活のあと眠かったけど、25分×4セットでしっかりやり切れた！',
+          compatanReply: 'すごいっ！！自分で立てた宣言を最後までやり抜けて、最高にかっこいいよ〜！🎉✨ この成功体験がキミの大きな自信になるね！'
+        }
+      ]),
+      sleepRecords: loadJSON('hsc_sleepRecords', [
+        { date: getOffsetDate(-6), hours: 6.5 },
+        { date: getOffsetDate(-5), hours: 7.0 },
+        { date: getOffsetDate(-4), hours: 5.5 },
+        { date: getOffsetDate(-3), hours: 8.0 },
+        { date: getOffsetDate(-2), hours: 6.0 },
+        { date: getOffsetDate(-1), hours: 7.5 },
+        { date: getTodayDate(), hours: 7.0 }
+      ]),
+      moodRecords: loadJSON('hsc_moodRecords', [
+        { id: 301, date: getOffsetDate(-2), mood: 'happy', note: '小テストが満点だった！' },
+        { id: 302, date: getOffsetDate(-1), mood: 'normal', note: '部活が少し疲れたけど宿題は終わった' },
+        { id: 303, date: getTodayDate(), mood: 'happy', note: '今日も1日頑張ろう！' }
+      ]),
+      chatMessages: loadJSON('hsc_chatMessages', [
+        {
+          id: 1,
+          sender: 'ai',
+          text: 'こんにちは！SHOSUKE（商大附スケジュール手帳）AIです🧭✨\n自ら考え、行動するキミの高校生活を全力サポートするよ！勉強計画や検定・資格、学校生活の悩みなど何でも相談してね！'
+        }
+      ]),
+      scheduleEvents: loadJSON('hsc_scheduleEvents', [
+        { id: 601, date: getTodayDate(), title: '放課後 図書室で自習（17:30まで）', category: '学習' },
+        { id: 602, date: getOffsetDate(3), title: '全商簿記検定 申込締切', category: '検定・行事' }
+      ]),
+      journalEntries: loadJSON('hsc_journalEntries', [
+        {
+          id: 701,
+          date: getTodayDate(),
+          time: '08:15',
+          tag: '#今日の気づき',
+          content: '朝の10分間で英単語を見直したら、小テストがスラスラ解けた！朝の時間は集中しやすいかも。'
+        }
+      ])
+    };
+
+    function persistAll() {
+      localStorage.setItem('hsc_userProfile', JSON.stringify(state.userProfile));
+      localStorage.setItem('hsc_mainGoal', state.mainGoal);
+      localStorage.setItem('hsc_studyTasks', JSON.stringify(state.studyTasks));
+      localStorage.setItem('hsc_homeworks', JSON.stringify(state.homeworks));
+      localStorage.setItem('hsc_tests', JSON.stringify(state.tests));
+      localStorage.setItem('hsc_personalGoals', JSON.stringify(state.personalGoals));
+      localStorage.setItem('hsc_goalReflections', JSON.stringify(state.goalReflections));
+      localStorage.setItem('hsc_sleepRecords', JSON.stringify(state.sleepRecords));
+      localStorage.setItem('hsc_moodRecords', JSON.stringify(state.moodRecords));
+      localStorage.setItem('hsc_chatMessages', JSON.stringify(state.chatMessages));
+      localStorage.setItem('hsc_scheduleEvents', JSON.stringify(state.scheduleEvents));
+      localStorage.setItem('hsc_journalEntries', JSON.stringify(state.journalEntries));
+    }
+
+    // ------------------------------------------
+    // 3. 専用オリジナルキャラクター「コンパたん」SVG生成
+    // ------------------------------------------
+    function renderCompatanSvg(mood = 'happy', sizeClass = 'w-16 h-16') {
+      let faceSvg = '';
+      if (mood === 'achieved') {
+        faceSvg = `
+          <path d="M 41 63 Q 46 56 51 63" fill="none" stroke="#1E3A8A" stroke-width="3.5" stroke-linecap="round" />
+          <path d="M 69 63 Q 74 56 79 63" fill="none" stroke="#1E3A8A" stroke-width="3.5" stroke-linecap="round" />
+          <path d="M 52 73 Q 60 83 68 73 Z" fill="#F43F5E" />
+          <polygon points="22,42 24,47 29,49 24,51 22,56 20,51 15,49 20,47" fill="#FBBF24" />
+          <polygon points="98,38 99.5,42 103.5,43.5 99.5,45 98,49 96.5,45 92.5,43.5 96.5,42" fill="#FBBF24" />
+        `;
+      } else if (mood === 'almost') {
+        faceSvg = `
+          <circle cx="46" cy="62" r="4" fill="#1E3A8A" />
+          <circle cx="47.5" cy="60.5" r="1.5" fill="#FFFFFF" />
+          <circle cx="74" cy="62" r="4" fill="#1E3A8A" />
+          <circle cx="75.5" cy="60.5" r="1.5" fill="#FFFFFF" />
+          <path d="M 53 74 Q 60 80 67 74" fill="none" stroke="#1E3A8A" stroke-width="3" stroke-linecap="round" />
+        `;
+      } else if (mood === 'retry') {
+        faceSvg = `
+          <path d="M 42 60 L 50 63 L 42 66" fill="none" stroke="#1E3A8A" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />
+          <path d="M 78 60 L 70 63 L 78 66" fill="none" stroke="#1E3A8A" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />
+          <path d="M 54 76 Q 60 72 66 76" fill="none" stroke="#1E3A8A" stroke-width="3" stroke-linecap="round" />
+        `;
+      } else {
+        faceSvg = `
+          <circle cx="46" cy="62" r="4.2" fill="#1E3A8A" />
+          <circle cx="47.5" cy="60.5" r="1.6" fill="#FFFFFF" />
+          <circle cx="74" cy="62" r="4.2" fill="#1E3A8A" />
+          <circle cx="75.5" cy="60.5" r="1.6" fill="#FFFFFF" />
+          <path d="M 53 73 Q 60 81 67 73" fill="none" stroke="#1E3A8A" stroke-width="3.2" stroke-linecap="round" />
+        `;
+      }
+
+      return `
+        <div class="${sizeClass} shrink-0 relative select-none">
+          <svg viewBox="0 0 120 120" class="w-full h-full drop-shadow-sm">
+            <circle cx="60" cy="14" r="8" fill="none" stroke="#2563EB" stroke-width="5" />
+            <rect x="54" y="19" width="12" height="7" rx="2" fill="#3B82F6" />
+            <circle cx="60" cy="66" r="46" fill="#2563EB" />
+            <circle cx="60" cy="66" r="41" fill="#60A5FA" />
+            <circle cx="60" cy="66" r="35" fill="#FFFFFF" />
+            <polygon points="60,33 57,39 63,39" fill="#93C5FD" />
+            <polygon points="60,99 57,93 63,93" fill="#93C5FD" />
+            <polygon points="27,66 33,63 33,69" fill="#93C5FD" />
+            <polygon points="93,66 87,63 87,69" fill="#93C5FD" />
+            <g transform="rotate(-25 60 32)">
+              <polygon points="60,16 55,32 65,32" fill="#EF4444" />
+              <polygon points="60,46 55,32 65,32" fill="#3B82F6" />
+              <circle cx="60" cy="32" r="3" fill="#FBBF24" />
+            </g>
+            <ellipse cx="42" cy="72" rx="5" ry="3" fill="#FDA4AF" opacity="0.8" />
+            <ellipse cx="78" cy="72" rx="5" ry="3" fill="#FDA4AF" opacity="0.8" />
+            ${faceSvg}
+          </svg>
+        </div>
+      `;
+    }
+
+    // ------------------------------------------
+    // 4. モーダル＆プロフィール・バックアップ操作
+    // ------------------------------------------
+    function openModal(id) {
+      if (id === 'profileModal') {
+        document.getElementById('profGrade').value = state.userProfile.grade;
+        document.getElementById('profClass').value = state.userProfile.className;
+        document.getElementById('profNumber').value = state.userProfile.number;
+        document.getElementById('profNickname').value = state.userProfile.nickname;
+        document.getElementById('profClub').value = state.userProfile.club;
+      }
+      document.getElementById(id).classList.remove('hidden');
+    }
+
+    function closeModal(id) {
+      document.getElementById(id).classList.add('hidden');
+    }
+
+    function saveProfile(e) {
+      e.preventDefault();
+      state.userProfile = {
+        grade: document.getElementById('profGrade').value,
+        className: document.getElementById('profClass').value,
+        number: document.getElementById('profNumber').value.trim() || '1番',
+        nickname: document.getElementById('profNickname').value.trim() || '商大附生',
+        club: document.getElementById('profClub').value.trim() || '未設定'
+      };
+      persistAll();
+      renderApp();
+      const badge = document.getElementById('profileSavedBadge');
+      badge.classList.remove('hidden');
+      setTimeout(() => badge.classList.add('hidden'), 2500);
+    }
+
+    function exportBackup() {
+      const payload = {
+        appName: 'SHOSUKE（商大附スケジュール手帳）',
+        exportedAt: new Date().toISOString(),
+        data: {
+          userProfile: state.userProfile,
+          mainGoal: state.mainGoal,
+          studyTasks: state.studyTasks,
+          homeworks: state.homeworks,
+          tests: state.tests,
+          personalGoals: state.personalGoals,
+          goalReflections: state.goalReflections,
+          sleepRecords: state.sleepRecords,
+          moodRecords: state.moodRecords,
+          chatMessages: state.chatMessages,
+          scheduleEvents: state.scheduleEvents,
+          journalEntries: state.journalEntries
+        }
+      };
+      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `SHOSUKE_${state.userProfile.grade}${state.userProfile.className}_${state.userProfile.nickname}_${getTodayDate().replace(/-/g, '')}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    function importBackup(e) {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        const msgEl = document.getElementById('backupStatusMsg');
+        try {
+          const parsed = JSON.parse(ev.target.result);
+          const d = parsed.data || parsed;
+          if (!d || typeof d !== 'object') throw new Error('Invalid');
+          if (d.userProfile) state.userProfile = d.userProfile;
+          if (typeof d.mainGoal === 'string') state.mainGoal = d.mainGoal;
+          if (Array.isArray(d.studyTasks)) state.studyTasks = d.studyTasks;
+          if (Array.isArray(d.homeworks)) state.homeworks = d.homeworks;
+          if (Array.isArray(d.tests)) state.tests = d.tests;
+          if (Array.isArray(d.personalGoals)) state.personalGoals = d.personalGoals;
+          if (Array.isArray(d.goalReflections)) state.goalReflections = d.goalReflections;
+          if (Array.isArray(d.sleepRecords)) state.sleepRecords = d.sleepRecords;
+          if (Array.isArray(d.moodRecords)) state.moodRecords = d.moodRecords;
+          if (Array.isArray(d.chatMessages)) state.chatMessages = d.chatMessages;
+          if (Array.isArray(d.scheduleEvents)) state.scheduleEvents = d.scheduleEvents;
+          if (Array.isArray(d.journalEntries)) state.journalEntries = d.journalEntries;
+
+          persistAll();
+          renderApp();
+          msgEl.textContent = '✅ バックアップから手帳データを復元しました！';
+          msgEl.classList.remove('hidden');
+        } catch (err) {
+          msgEl.textContent = '⚠️ 読み込みに失敗しました。正しいバックアップファイルを選んでください。';
+          msgEl.classList.remove('hidden');
+        }
+      };
+      reader.readAsText(file);
+      e.target.value = '';
+    }
+
+    function downloadAppHtml() {
+      const fullHtml = '<!DOCTYPE html>\n' + document.documentElement.outerHTML;
+      const blob = new Blob([fullHtml], { type: 'text/html;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'index.html';
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    // ------------------------------------------
+    // 5. ナビゲーション＆各画面アクション
+    // ------------------------------------------
+    function setTab(tab) {
+      state.activeTab = tab;
+      renderApp();
+    }
+
+    function setTestSubTab(sub) {
+      state.testSubTab = sub;
+      renderApp();
+    }
+
+    function setRecordSubTab(sub) {
+      state.recordSubTab = sub;
+      renderApp();
+    }
+
+    // --- ホーム：メイン宣言編集 ---
+    function toggleEditMainGoal() {
+      state.isEditingGoal = !state.isEditingGoal;
+      renderApp();
+    }
+
+    function saveMainGoal() {
+      const val = document.getElementById('mainGoalInput').value.trim();
+      if (val) state.mainGoal = val;
+      state.isEditingGoal = false;
+      persistAll();
+      renderApp();
+    }
+
+    // --- ホーム：クイック・ジャーナリング ---
+    function selectJournalTag(tag) {
+      state.journalTag = tag;
+      renderApp();
+    }
+
+    function submitQuickJournal(e) {
+      e.preventDefault();
+      const input = document.getElementById('quickJournalInput');
+      const content = input.value.trim();
+      if (!content) return;
+      const now = new Date();
+      const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+      state.journalEntries.unshift({
+        id: Date.now(),
+        date: getTodayDate(),
+        time: timeStr,
+        tag: state.journalTag,
+        content
+      });
+      persistAll();
+      renderApp();
+    }
+
+    // --- 勉強管理 ---
+    function handleAddStudy(e) {
+      e.preventDefault();
+      const subject = document.getElementById('studySubject').value;
+      const date = document.getElementById('studyDate').value || getTodayDate();
+      const title = document.getElementById('studyTitle').value.trim();
+      if (!title) return;
+      state.studyTasks.unshift({ id: Date.now(), subject, title, date, completed: false });
+      persistAll();
+      renderApp();
+    }
+
+    function toggleStudy(id) {
+      state.studyTasks = state.studyTasks.map(t => t.id === id ? { ...t, completed: !t.completed } : t);
+      persistAll();
+      renderApp();
+    }
+
+    function deleteStudy(id) {
+      state.studyTasks = state.studyTasks.filter(t => t.id !== id);
+      persistAll();
+      renderApp();
+    }
+
+    // --- 宿題管理 ---
+    function handleAddHomework(e) {
+      e.preventDefault();
+      const subject = document.getElementById('hwSubject').value;
+      const dueDate = document.getElementById('hwDate').value;
+      const title = document.getElementById('hwTitle').value.trim();
+      if (!title || !dueDate) return;
+      state.homeworks.push({ id: Date.now(), subject, title, dueDate, completed: false });
+      state.homeworks.sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate));
+      persistAll();
+      renderApp();
+    }
+
+    function toggleHomework(id) {
+      state.homeworks = state.homeworks.map(h => h.id === id ? { ...h, completed: !h.completed } : h);
+      persistAll();
+      renderApp();
+    }
+
+    function deleteHomework(id) {
+      state.homeworks = state.homeworks.filter(h => h.id !== id);
+      persistAll();
+      renderApp();
+    }
+
+    // --- テスト・目標・振り返り ---
+    function handleAddTest(e) {
+      e.preventDefault();
+      const name = document.getElementById('testName').value.trim();
+      const date = document.getElementById('testDate').value;
+      const targetScore = document.getElementById('testScore').value.trim();
+      const goal = document.getElementById('testGoal').value.trim() || '目標に向かって頑張ろう！';
+      if (!name || !date) return;
+      state.tests.push({ id: Date.now(), name, date, targetScore, goal, achieved: false });
+      state.tests.sort((a, b) => new Date(a.date) - new Date(b.date));
+      persistAll();
+      renderApp();
+    }
+
+    function toggleTestAchieved(id) {
+      state.tests = state.tests.map(t => t.id === id ? { ...t, achieved: !t.achieved } : t);
+      persistAll();
+      renderApp();
+    }
+
+    function deleteTest(id) {
+      state.tests = state.tests.filter(t => t.id !== id);
+      persistAll();
+      renderApp();
+    }
+
+    function handleAddGoal(e) {
+      e.preventDefault();
+      const category = document.getElementById('goalCategory').value;
+      const deadline = document.getElementById('goalDeadline').value;
+      const title = document.getElementById('goalTitle').value.trim();
+      if (!title) return;
+      state.personalGoals.unshift({ id: Date.now(), category, title, deadline, completed: false });
+      persistAll();
+      renderApp();
+    }
+
+    function toggleGoal(id) {
+      state.personalGoals = state.personalGoals.map(g => g.id === id ? { ...g, completed: !g.completed } : g);
+      persistAll();
+      renderApp();
+    }
+
+    function deleteGoal(id) {
+      state.personalGoals = state.personalGoals.filter(g => g.id !== id);
+      persistAll();
+      renderApp();
+    }
+
+    function selectReflectRating(r) {
+      state.reflectRating = r;
+      renderApp();
+    }
+
+    function handleAddReflection(e) {
+      e.preventDefault();
+      const targetText = document.getElementById('reflectTarget').value;
+      const comment = document.getElementById('reflectComment').value.trim() || '振り返りを記録しました！';
+      let reply = '';
+      if (state.reflectRating === 'achieved') {
+        reply = 'すごいっ！！自分で立てた宣言を最後までやり抜けて、最高にかっこいいよ〜！🎉✨ この成功体験がキミの大きな自信になるね！';
+      } else if (state.reflectRating === 'almost') {
+        reply = 'あと一歩まで粘り強く取り組めたのが素晴らしい！👏 自分で振り返って改善点を見つけられるのが「自主・自立」の証だよ。次はあと10分だけ早めに取り掛かってみようか🧭💡';
+      } else {
+        reply = 'うまくいかない日があっても、諦めずに振り返りを記録した時点で確実に成長してるよ！🌱 明日は最初の5分だけ机に向かうことから再スタートしよう！';
+      }
+      state.goalReflections.unshift({
+        id: Date.now(),
+        date: getTodayDate(),
+        targetText,
+        rating: state.reflectRating,
+        comment,
+        compatanReply: reply
+      });
+      persistAll();
+      renderApp();
+    }
+
+    function deleteReflection(id) {
+      state.goalReflections = state.goalReflections.filter(r => r.id !== id);
+      persistAll();
+      renderApp();
+    }
+
+    // --- 手帳カレンダー操作 ---
+    function changeCalMonth(delta) {
+      let m = state.calMonth + delta;
+      let y = state.calYear;
+      if (m < 0) { m = 11; y--; }
+      if (m > 11) { m = 0; y++; }
+      state.calMonth = m;
+      state.calYear = y;
+      renderApp();
+    }
+
+    function selectCalDate(dateStr) {
+      state.selectedCalDate = dateStr;
+      renderApp();
+    }
+
+    function setCalFilter(filter) {
+      state.calFilter = filter;
+      renderApp();
+    }
+
+    function handleAddCalEvent(e) {
+      e.preventDefault();
+      const category = document.getElementById('calEventCategory').value;
+      const title = document.getElementById('calEventTitle').value.trim();
+      if (!title) return;
+      state.scheduleEvents.push({
+        id: Date.now(),
+        date: state.selectedCalDate,
+        category,
+        title
+      });
+      persistAll();
+      renderApp();
+    }
+
+    function deleteCalEvent(id) {
+      state.scheduleEvents = state.scheduleEvents.filter(ev => ev.id !== id);
+      persistAll();
+      renderApp();
+    }
+
+    // --- 記録（睡眠・気分・AI相談） ---
+    function handleSaveSleep(e) {
+      e.preventDefault();
+      const hours = parseFloat(document.getElementById('sleepHoursInput').value);
+      if (isNaN(hours) || hours < 0 || hours > 24) return;
+      const today = getTodayDate();
+      const exists = state.sleepRecords.some(r => r.date === today);
+      if (exists) {
+        state.sleepRecords = state.sleepRecords.map(r => r.date === today ? { ...r, hours } : r);
+      } else {
+        state.sleepRecords.push({ date: today, hours });
+      }
+      state.sleepRecords.sort((a, b) => new Date(a.date) - new Date(b.date));
+      if (state.sleepRecords.length > 7) {
+        state.sleepRecords = state.sleepRecords.slice(-7);
+      }
+      persistAll();
+      renderApp();
+    }
+
+    function selectMood(mood) {
+      state.selectedMood = mood;
+      renderApp();
+    }
+
+    function handleSaveMood(e) {
+      e.preventDefault();
+      const note = document.getElementById('moodNoteInput').value.trim();
+      const today = getTodayDate();
+      state.moodRecords = state.moodRecords.filter(r => r.date !== today);
+      state.moodRecords.unshift({
+        id: Date.now(),
+        date: today,
+        mood: state.selectedMood,
+        note
+      });
+      persistAll();
+      renderApp();
+    }
+
+    function sendAiChat(customText) {
+      const inputEl = document.getElementById('aiChatInput');
+      const text = customText || (inputEl ? inputEl.value.trim() : '');
+      if (!text) return;
+      state.chatMessages.push({ id: Date.now(), sender: 'user', text });
+      persistAll();
+      renderApp();
+
+      setTimeout(() => {
+        let reply = '話してくれてありがとう！😊✨\n自分で考え、行動し、振り返るサイクルを回しているキミは確実に成長しているよ。応援してるね！いつでも相談してね。';
+        if (text.includes('テスト') || text.includes('勉強') || text.includes('検定')) {
+          reply = 'テストや検定に向けた主体的な取り組み、素晴らしいね！📚✨\nまずは「25分集中＋5分休憩」で小さな達成感を積み重ねよう。暗記モノは寝る前30分にやると記憶に定着しやすいよ！';
+        } else if (text.includes('眠い') || text.includes('睡眠') || text.includes('疲れ')) {
+          reply = '毎日学校や部活で本当に頑張ってるね😌💤\n睡眠不足だと集中力も落ちちゃうから、今日は思い切って早めに寝るのも立派な自己管理だよ！';
+        } else if (text.includes('やる気') || text.includes('モチベ')) {
+          reply = 'やる気が出ない日もあるよね、全然大丈夫！🌱\n継続のコツは、気分に頼らず「まず3分だけやる仕組み」を作ること。机に座って1問だけ解いてみよう！';
+        }
+        state.chatMessages.push({ id: Date.now() + 1, sender: 'ai', text: reply });
+        persistAll();
+        renderApp();
+      }, 350);
+    }
+
+    // ------------------------------------------
+    // 6. 各画面のHTMLレンダリング
+    // ------------------------------------------
+    function renderHomeScreen() {
+      const todayStr = getTodayDate();
+      const uncompletedStudies = state.studyTasks.filter(t => !t.completed);
+      const uncompletedHomeworks = state.homeworks.filter(h => !h.completed);
+      const upcomingTest = state.tests.find(t => calculateDaysLeft(t.date) >= 0) || state.tests[0];
+      const todaySleep = state.sleepRecords.find(r => r.date === todayStr);
+      const todayMood = state.moodRecords.find(r => r.date === todayStr);
+      const todayJournals = state.journalEntries.filter(j => j.date === todayStr);
+
+      return `
+        <div class="space-y-4">
+          <!-- プロフィールバー -->
+          <div onclick="openModal('profileModal')" class="bg-white rounded-2xl px-3.5 py-2.5 shadow-2xs border border-blue-100 flex items-center justify-between cursor-pointer hover:border-blue-300 transition">
+            <div class="flex items-center gap-2.5">
+              <div class="w-8 h-8 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center font-extrabold text-xs">👤</div>
+              <div>
+                <div class="flex items-center gap-1.5">
+                  <span class="text-[11px] font-extrabold text-blue-700 bg-blue-50 px-2 py-0.5 rounded-md">
+                    ${escapeHtml(state.userProfile.grade)} ${escapeHtml(state.userProfile.className)} ${escapeHtml(state.userProfile.number)}
+                  </span>
+                  <span class="text-xs font-extrabold text-slate-800">${escapeHtml(state.userProfile.nickname)} さん</span>
+                </div>
+                <p class="text-[10px] text-slate-400 mt-0.5">所属：${escapeHtml(state.userProfile.club)}（タップでプロフィール・バックアップ）</p>
+              </div>
+            </div>
+            <span class="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded-full">端末保存済</span>
+          </div>
+
+          <!-- コンパたん＆MY宣言バナー -->
+          <div class="bg-gradient-to-br from-blue-600 via-blue-600 to-sky-500 rounded-3xl p-4 text-white shadow-md">
+            <div class="flex items-center gap-3">
+              ${renderCompatanSvg('happy', 'w-16 h-16')}
+              <div class="flex-1">
+                <div class="flex items-center justify-between">
+                  <span class="text-[10px] font-bold bg-white/20 px-2 py-0.5 rounded-full">SHOSUKE MY宣言</span>
+                  <button onclick="toggleEditMainGoal()" class="text-[11px] font-bold bg-white/15 hover:bg-white/25 px-2 py-0.5 rounded-lg transition">✏️ 編集</button>
+                </div>
+                ${state.isEditingGoal ? `
+                  <div class="mt-2 space-y-1.5">
+                    <input id="mainGoalInput" type="text" value="${escapeHtml(state.mainGoal)}" class="w-full text-slate-800 bg-white text-xs font-bold px-2.5 py-1.5 rounded-xl outline-none" />
+                    <div class="flex justify-end gap-1.5">
+                      <button onclick="toggleEditMainGoal()" class="text-[11px] px-2.5 py-1 rounded-lg bg-white/20">キャンセル</button>
+                      <button onclick="saveMainGoal()" class="text-[11px] px-2.5 py-1 rounded-lg bg-white text-blue-700 font-extrabold">保存</button>
+                    </div>
+                  </div>
+                ` : `
+                  <p class="text-sm font-extrabold mt-1.5 leading-snug">「${escapeHtml(state.mainGoal)}」</p>
+                `}
+              </div>
+            </div>
+          </div>
+
+          <!-- クイック・ジャーナリングカード -->
+          <div class="bg-white rounded-3xl p-4 shadow-sm border border-blue-100 space-y-2.5">
+            <div class="flex items-center justify-between">
+              <h2 class="text-sm font-extrabold text-slate-800">✍️ クイック・ジャーナリング</h2>
+              <button onclick="setTab('calendar')" class="text-[11px] font-bold text-blue-600 hover:underline">手帳で見返す ›</button>
+            </div>
+            <div class="flex gap-1.5 overflow-x-auto no-scrollbar pb-0.5">
+              ${['#今日の気づき', '#感謝・よかったこと', '#もやもや整理', '#明日の作戦'].map(tag => `
+                <button type="button" onclick="selectJournalTag('${tag}')" class="shrink-0 text-[11px] font-bold px-2.5 py-1 rounded-full transition ${
+                  state.journalTag === tag ? 'bg-blue-600 text-white' : 'bg-blue-50 text-blue-700 hover:bg-blue-100'
+                }">${tag}</button>
+              `).join('')}
+            </div>
+            <form onsubmit="submitQuickJournal(event)" class="space-y-2">
+              <textarea id="quickJournalInput" rows="2" placeholder="今の気持ちや気づいたことを自由に書き留めよう..." class="w-full bg-slate-50 text-slate-800 text-xs rounded-2xl p-3 outline-none border border-slate-200 focus:border-blue-500 resize-none"></textarea>
+              <div class="flex items-center justify-between">
+                <span class="text-[10px] text-slate-400">手帳カレンダーの日別ページにも自動集約されます</span>
+                <button type="submit" class="px-4 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl transition">書き留める</button>
+              </div>
+            </form>
+            ${todayJournals.length > 0 ? `
+              <div class="p-2.5 rounded-2xl bg-sky-50/70 border border-blue-100 text-xs">
+                <div class="flex items-center justify-between text-[10px] text-blue-700 font-bold mb-0.5">
+                  <span>${escapeHtml(todayJournals[0].tag)}</span>
+                  <span class="text-slate-400">${escapeHtml(todayJournals[0].time)}</span>
+                </div>
+                <p class="text-slate-700">${escapeHtml(todayJournals[0].content)}</p>
+              </div>
+            ` : ''}
+          </div>
+
+          <!-- 次のテストカウントダウン -->
+          ${upcomingTest ? `
+            <div onclick="setTab('test')" class="bg-white rounded-2xl p-4 shadow-sm border border-blue-100 flex items-center justify-between cursor-pointer hover:border-blue-300 transition">
+              <div>
+                <span class="text-[10px] font-extrabold text-rose-600 bg-rose-50 px-2 py-0.5 rounded-md">NEXT TEST / 目標</span>
+                <h3 class="text-sm font-extrabold text-slate-800 mt-1">${escapeHtml(upcomingTest.name)}</h3>
+                <p class="text-xs text-slate-500 mt-0.5">🎯 ${escapeHtml(upcomingTest.goal)}</p>
+              </div>
+              <div class="text-center bg-blue-50 px-3.5 py-2 rounded-2xl border border-blue-100 shrink-0">
+                <span class="text-[10px] font-bold text-blue-600 block">あと</span>
+                <span class="text-2xl font-black text-blue-700 leading-none">${Math.max(0, calculateDaysLeft(upcomingTest.date))}</span>
+                <span class="text-[10px] font-bold text-blue-600 block">日</span>
+              </div>
+            </div>
+          ` : ''}
+
+          <!-- 勉強＆宿題サマリー -->
+          <div class="grid grid-cols-2 gap-3">
+            <div onclick="setTab('study')" class="bg-white p-3.5 rounded-2xl shadow-sm border border-blue-100 cursor-pointer hover:border-blue-300 transition">
+              <span class="text-[11px] font-bold text-blue-600">📘 勉強タスク</span>
+              <p class="text-xl font-extrabold text-slate-800 mt-1">残り <span class="text-blue-600">${uncompletedStudies.length}</span> 件</p>
+              <p class="text-[11px] text-slate-400 mt-0.5 truncate">${uncompletedStudies[0] ? escapeHtml(uncompletedStudies[0].title) : 'すべて完了！'}</p>
+            </div>
+            <div onclick="setTab('homework')" class="bg-white p-3.5 rounded-2xl shadow-sm border border-blue-100 cursor-pointer hover:border-blue-300 transition">
+              <span class="text-[11px] font-bold text-amber-600">📙 宿題・提出物</span>
+              <p class="text-xl font-extrabold text-slate-800 mt-1">残り <span class="text-amber-500">${uncompletedHomeworks.length}</span> 件</p>
+              <p class="text-[11px] text-slate-400 mt-0.5 truncate">${uncompletedHomeworks[0] ? escapeHtml(uncompletedHomeworks[0].title) : '提出物はバッチリ！'}</p>
+            </div>
+          </div>
+
+          <!-- 今日のコンディション＆AI相談 -->
+          <div class="bg-white p-4 rounded-2xl shadow-sm border border-blue-100 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+              <div class="w-10 h-10 rounded-2xl bg-blue-50 flex items-center justify-center text-xl">
+                ${todayMood ? (todayMood.mood === 'happy' ? '😊' : todayMood.mood === 'normal' ? '😐' : '😢') : '🧭'}
+              </div>
+              <div>
+                <p class="text-xs font-extrabold text-slate-800">今日のコンディション</p>
+                <p class="text-[11px] text-slate-500">睡眠：${todaySleep ? todaySleep.hours + '時間' : '未記録'} ／ 気分：${todayMood ? '記録済' : '未記録'}</p>
+              </div>
+            </div>
+            <div class="flex gap-1.5">
+              <button onclick="state.recordSubTab='sleep'; setTab('record')" class="text-[11px] font-bold px-2.5 py-1.5 rounded-xl bg-blue-50 text-blue-700">記録</button>
+              <button onclick="state.recordSubTab='ai'; setTab('record')" class="text-[11px] font-bold px-2.5 py-1.5 rounded-xl bg-blue-600 text-white">AI相談</button>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderStudyScreen() {
+      const completedCount = state.studyTasks.filter(t => t.completed).length;
+      const percent = state.studyTasks.length > 0 ? Math.round((completedCount / state.studyTasks.length) * 100) : 0;
+
+      return `
+        <div class="space-y-4">
+          <div class="bg-white p-4 rounded-2xl shadow-sm border border-blue-100">
+            <div class="flex justify-between items-center mb-2">
+              <div>
+                <h2 class="text-base font-extrabold text-slate-800">📘 勉強タスク管理</h2>
+                <p class="text-xs text-slate-500">チェックボックスで達成状況を管理しよう！</p>
+              </div>
+              <span class="text-xl font-extrabold text-blue-600">${percent}%</span>
+            </div>
+            <div class="w-full bg-blue-100 h-2.5 rounded-full overflow-hidden">
+              <div class="bg-gradient-to-r from-blue-600 to-sky-400 h-full rounded-full transition-all" style="width: ${percent}%"></div>
+            </div>
+          </div>
+
+          <form onsubmit="handleAddStudy(event)" class="bg-white p-4 rounded-2xl shadow-sm border border-blue-100 space-y-3">
+            <p class="text-xs font-bold text-slate-600">＋ 新しい勉強タスクを追加</p>
+            <div class="grid grid-cols-2 gap-2">
+              <select id="studySubject" class="bg-blue-50 text-blue-800 font-semibold text-sm rounded-xl px-3 py-2.5 outline-none border border-blue-100">
+                <option value="数学">数学</option><option value="英語">英語</option><option value="国語">国語</option>
+                <option value="理科">理科</option><option value="社会">社会</option><option value="検定・商業">検定・商業</option><option value="その他">その他</option>
+              </select>
+              <input id="studyDate" type="date" value="${getTodayDate()}" class="bg-slate-50 text-slate-700 text-sm rounded-xl px-3 py-2.5 outline-none border border-slate-200" />
+            </div>
+            <input id="studyTitle" type="text" placeholder="例：英単語 50個覚える" class="w-full bg-slate-50 text-slate-800 text-sm rounded-xl px-3.5 py-2.5 outline-none border border-slate-200 focus:border-blue-500" />
+            <button type="submit" class="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm rounded-xl shadow-sm transition">＋ リストに追加する</button>
+          </form>
+
+          <div class="space-y-2.5">
+            ${state.studyTasks.map(task => `
+              <div class="p-3.5 rounded-2xl border flex items-center justify-between transition ${task.completed ? 'bg-slate-50 border-slate-200 opacity-75' : 'bg-white border-blue-100 shadow-sm'}">
+                <div onclick="toggleStudy(${task.id})" class="flex items-center gap-3 flex-1 cursor-pointer">
+                  <span class="text-xl">${task.completed ? '☑️' : '⬜'}</span>
+                  <div>
+                    <div class="flex items-center gap-2">
+                      <span class="text-[11px] font-bold px-2 py-0.5 rounded-md bg-blue-50 text-blue-700">${escapeHtml(task.subject)}</span>
+                      <span class="text-[11px] text-slate-400">📅 ${formatShortDate(task.date || getTodayDate())}</span>
+                    </div>
+                    <p class="text-sm font-bold mt-1 ${task.completed ? 'line-through text-slate-400' : 'text-slate-800'}">${escapeHtml(task.title)}</p>
+                  </div>
+                </div>
+                <button onclick="deleteStudy(${task.id})" class="p-2 text-slate-400 hover:text-red-500 text-xs">🗑️</button>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      `;
+    }
+
+    function renderHomeworkScreen() {
+      return `
+        <div class="space-y-4">
+          <div class="bg-white p-4 rounded-2xl shadow-sm border border-blue-100">
+            <h2 class="text-base font-extrabold text-slate-800">📙 宿題・提出物管理</h2>
+            <p class="text-xs text-slate-500">提出期限から残り日数を自動計算＆手帳にも集約！</p>
+          </div>
+
+          <form onsubmit="handleAddHomework(event)" class="bg-white p-4 rounded-2xl shadow-sm border border-blue-100 space-y-3">
+            <p class="text-xs font-bold text-slate-600">＋ 新しい宿題・提出物を追加</p>
+            <div class="grid grid-cols-2 gap-2">
+              <select id="hwSubject" class="bg-blue-50 text-blue-800 font-semibold text-sm rounded-xl px-3 py-2.5 outline-none border border-blue-100">
+                <option value="英語">英語</option><option value="数学">数学</option><option value="国語">国語</option>
+                <option value="理科">理科</option><option value="社会">社会</option><option value="商業・情報">商業・情報</option><option value="その他">その他</option>
+              </select>
+              <input id="hwDate" type="date" value="${getOffsetDate(2)}" class="bg-slate-50 text-slate-700 text-sm rounded-xl px-3 py-2.5 outline-none border border-slate-200" />
+            </div>
+            <input id="hwTitle" type="text" placeholder="例：ワーク p.32〜35 提出" class="w-full bg-slate-50 text-slate-800 text-sm rounded-xl px-3.5 py-2.5 outline-none border border-slate-200 focus:border-blue-500" />
+            <button type="submit" class="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm rounded-xl shadow-sm transition">＋ 宿題を登録する</button>
+          </form>
+
+          <div class="space-y-2.5">
+            ${state.homeworks.map(hw => {
+              const daysLeft = calculateDaysLeft(hw.dueDate);
+              const badgeText = hw.completed ? '提出済' : daysLeft < 0 ? `期限超過 (${Math.abs(daysLeft)}日)` : daysLeft === 0 ? '今日が締切！' : `あと ${daysLeft} 日`;
+              const badgeClass = hw.completed ? 'bg-slate-200 text-slate-500' : daysLeft <= 1 ? 'bg-rose-100 text-rose-700' : 'bg-amber-50 text-amber-700';
+              return `
+                <div class="p-3.5 rounded-2xl border flex items-center justify-between transition ${hw.completed ? 'bg-slate-50 border-slate-200 opacity-75' : 'bg-white border-blue-100 shadow-sm'}">
+                  <div onclick="toggleHomework(${hw.id})" class="flex items-center gap-3 flex-1 cursor-pointer">
+                    <span class="text-xl">${hw.completed ? '☑️' : '⬜'}</span>
+                    <div>
+                      <div class="flex items-center gap-2 flex-wrap">
+                        <span class="text-[11px] font-bold px-2 py-0.5 rounded-md bg-blue-50 text-blue-700">${escapeHtml(hw.subject)}</span>
+                        <span class="text-[11px] font-bold px-2 py-0.5 rounded-md ${badgeClass}">${badgeText}</span>
+                      </div>
+                      <p class="text-sm font-bold mt-1 ${hw.completed ? 'line-through text-slate-400' : 'text-slate-800'}">${escapeHtml(hw.title)}</p>
+                      <p class="text-[11px] text-slate-400 mt-0.5">提出日: ${escapeHtml(hw.dueDate)}</p>
+                    </div>
+                  </div>
+                  <button onclick="deleteHomework(${hw.id})" class="p-2 text-slate-400 hover:text-red-500 text-xs">🗑️</button>
+                </div>
+              `;
+            }).join('')}
+          </div>
+        </div>
+      `;
+    }
+
+    function renderTestScreen() {
+      return `
+        <div class="space-y-4">
+          <div class="bg-white p-1.5 rounded-2xl shadow-sm border border-blue-100 grid grid-cols-3 gap-1">
+            ${[
+              { id: 'tests', label: '📅 テスト日程' },
+              { id: 'goals', label: '🎯 目標設定' },
+              { id: 'reflect', label: '🧭 振り返り' }
+            ].map(t => `
+              <button onclick="setTestSubTab('${t.id}')" class="py-2 text-xs font-extrabold rounded-xl transition ${
+                state.testSubTab === t.id ? 'bg-blue-600 text-white shadow-xs' : 'text-slate-500 hover:bg-blue-50'
+              }">${t.label}</button>
+            `).join('')}
+          </div>
+
+          ${state.testSubTab === 'tests' ? `
+            <form onsubmit="handleAddTest(event)" class="bg-white p-4 rounded-2xl shadow-sm border border-blue-100 space-y-3">
+              <p class="text-xs font-bold text-slate-600">＋ 定期テスト・模試・検定を追加</p>
+              <div class="grid grid-cols-2 gap-2">
+                <input id="testName" type="text" placeholder="例：期末考査 / 簿記検定" class="bg-slate-50 text-slate-800 text-sm rounded-xl px-3 py-2.5 outline-none border border-slate-200" />
+                <input id="testDate" type="date" value="${getOffsetDate(14)}" class="bg-slate-50 text-slate-700 text-sm rounded-xl px-3 py-2.5 outline-none border border-slate-200" />
+              </div>
+              <div class="grid grid-cols-2 gap-2">
+                <input id="testScore" type="text" placeholder="目標点数（例：400点）" class="bg-slate-50 text-slate-800 text-xs rounded-xl px-3 py-2.5 outline-none border border-slate-200" />
+                <input id="testGoal" type="text" placeholder="意気込み・作戦メモ" class="bg-slate-50 text-slate-800 text-xs rounded-xl px-3 py-2.5 outline-none border border-slate-200" />
+              </div>
+              <button type="submit" class="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm rounded-xl shadow-sm transition">＋ テストを登録する</button>
+            </form>
+
+            <div class="space-y-3">
+              ${state.tests.map(test => {
+                const daysLeft = calculateDaysLeft(test.date);
+                return `
+                  <div class="p-4 rounded-2xl border shadow-sm transition ${test.achieved ? 'bg-blue-50/50 border-blue-200' : 'bg-white border-blue-100'}">
+                    <div class="flex items-start justify-between gap-2">
+                      <div>
+                        <span class="text-[11px] font-bold text-blue-600">📅 ${escapeHtml(test.date)}</span>
+                        <h3 class="text-base font-extrabold text-slate-800 mt-0.5">${escapeHtml(test.name)}</h3>
+                        ${test.targetScore ? `<span class="inline-block mt-1 text-[11px] font-extrabold px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200">🏆 目標：${escapeHtml(test.targetScore)}</span>` : ''}
+                        <p class="text-xs text-slate-600 mt-1.5">🎯 ${escapeHtml(test.goal)}</p>
+                      </div>
+                      <div class="text-center bg-gradient-to-b from-blue-600 to-sky-500 text-white px-3.5 py-2 rounded-2xl shrink-0">
+                        <span class="text-[10px] font-bold block">残り</span>
+                        <span class="text-xl font-black leading-none">${daysLeft >= 0 ? daysLeft : 0}</span>
+                        <span class="text-[10px] font-bold block">日</span>
+                      </div>
+                    </div>
+                    <div class="mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-between">
+                      <button onclick="toggleTestAchieved(${test.id})" class="text-xs font-bold px-3 py-1.5 rounded-xl transition ${test.achieved ? 'bg-emerald-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-blue-50'}">
+                        ${test.achieved ? '🏆 目標達成クリア！🎉' : '🏆 目標達成をチェック'}
+                      </button>
+                      <button onclick="deleteTest(${test.id})" class="p-1.5 text-slate-400 hover:text-red-500 text-xs">🗑️</button>
+                    </div>
+                  </div>
+                `;
+              }).join('')}
+            </div>
+          ` : ''}
+
+          ${state.testSubTab === 'goals' ? `
+            <form onsubmit="handleAddGoal(event)" class="bg-white p-4 rounded-2xl shadow-sm border border-blue-100 space-y-3">
+              <p class="text-xs font-bold text-slate-600">＋ 自分の目標（宣言）を設定する</p>
+              <div class="grid grid-cols-2 gap-2">
+                <select id="goalCategory" class="bg-blue-50 text-blue-800 font-semibold text-xs rounded-xl px-3 py-2.5 outline-none border border-blue-100">
+                  <option value="テスト目標">テスト目標</option>
+                  <option value="模試・受験">模試・受験</option>
+                  <option value="検定・資格">検定・資格</option>
+                  <option value="生活習慣">生活習慣</option>
+                  <option value="部活・その他">部活・その他</option>
+                </select>
+                <input id="goalDeadline" type="date" value="${getOffsetDate(14)}" class="bg-slate-50 text-slate-700 text-xs rounded-xl px-3 py-2.5 outline-none border border-slate-200" />
+              </div>
+              <input id="goalTitle" type="text" placeholder="例：全商簿記2級に合格する / 毎日英単語20個" class="w-full bg-slate-50 text-slate-800 text-sm rounded-xl px-3.5 py-2.5 outline-none border border-slate-200 focus:border-blue-500" />
+              <button type="submit" class="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm rounded-xl shadow-sm transition">🎯 目標リストに追加</button>
+            </form>
+
+            <div class="space-y-2.5">
+              ${state.personalGoals.map(g => `
+                <div class="p-3.5 rounded-2xl border flex items-center justify-between transition ${g.completed ? 'bg-slate-50 border-slate-200 opacity-75' : 'bg-white border-blue-100 shadow-sm'}">
+                  <div onclick="toggleGoal(${g.id})" class="flex items-center gap-3 flex-1 cursor-pointer">
+                    <span class="text-xl">${g.completed ? '☑️' : '⬜'}</span>
+                    <div>
+                      <div class="flex items-center gap-2">
+                        <span class="text-[10px] font-bold px-2 py-0.5 rounded-md bg-indigo-50 text-indigo-700">${escapeHtml(g.category)}</span>
+                        ${g.deadline ? `<span class="text-[10px] text-slate-400">期限: ${escapeHtml(g.deadline)}</span>` : ''}
+                      </div>
+                      <p class="text-sm font-bold mt-1 ${g.completed ? 'line-through text-slate-400' : 'text-slate-800'}">${escapeHtml(g.title)}</p>
+                    </div>
+                  </div>
+                  <button onclick="deleteGoal(${g.id})" class="p-2 text-slate-400 hover:text-red-500 text-xs">🗑️</button>
+                </div>
+              `).join('')}
+            </div>
+          ` : ''}
+
+          ${state.testSubTab === 'reflect' ? `
+            <div class="bg-white p-4 rounded-3xl shadow-sm border border-blue-100 space-y-3">
+              <div class="flex items-center gap-3">
+                ${renderCompatanSvg(state.reflectRating, 'w-16 h-16')}
+                <div>
+                  <span class="text-[10px] font-extrabold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">ナビゲーター：コンパたん</span>
+                  <h3 class="text-sm font-extrabold text-slate-800 mt-1">宣言の振り返りをしよう！</h3>
+                  <p class="text-[11px] text-slate-500">評価を選ぶとコンパたんの表情が変わるよ🧭</p>
+                </div>
+              </div>
+
+              <form onsubmit="handleAddReflection(event)" class="space-y-3">
+                <div>
+                  <label class="text-[11px] font-bold text-slate-600 block mb-1">振り返る宣言・目標を選択</label>
+                  <select id="reflectTarget" class="w-full bg-blue-50 text-blue-900 text-xs font-bold rounded-xl px-3 py-2.5 outline-none border border-blue-100">
+                    <option value="${escapeHtml(state.mainGoal)}">🌟 メイン宣言：${escapeHtml(state.mainGoal)}</option>
+                    ${state.personalGoals.map(g => `<option value="${escapeHtml(g.title)}">🎯 ${escapeHtml(g.title)}</option>`).join('')}
+                    ${state.tests.map(t => `<option value="${escapeHtml(t.name)}（${escapeHtml(t.goal)}）">📅 ${escapeHtml(t.name)}</option>`).join('')}
+                  </select>
+                </div>
+
+                <div class="grid grid-cols-3 gap-2">
+                  ${[
+                    { id: 'achieved', label: '✨ バッチリ達成！' },
+                    { id: 'almost', label: '🔥 あと少し！' },
+                    { id: 'retry', label: '🌱 次にリベンジ' }
+                  ].map(opt => `
+                    <button type="button" onclick="selectReflectRating('${opt.id}')" class="py-2 px-1.5 rounded-xl text-[11px] font-extrabold border transition ${
+                      state.reflectRating === opt.id ? 'bg-blue-600 text-white border-blue-600' : 'bg-slate-50 text-slate-600 border-slate-200'
+                    }">${opt.label}</button>
+                  `).join('')}
+                </div>
+
+                <textarea id="reflectComment" rows="2" placeholder="うまくいった工夫や、次に改善したいことを書いてみよう..." class="w-full bg-slate-50 text-slate-800 text-xs rounded-2xl p-3 outline-none border border-slate-200 focus:border-blue-500 resize-none"></textarea>
+                <button type="submit" class="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm rounded-xl shadow-sm transition">振り返りを記録してコンパたんに報告！</button>
+              </form>
+            </div>
+
+            <div class="space-y-3">
+              ${state.goalReflections.map(ref => `
+                <div class="bg-white p-4 rounded-2xl shadow-sm border border-blue-100 space-y-2.5">
+                  <div class="flex items-center justify-between">
+                    <span class="text-[11px] font-bold text-slate-400">${escapeHtml(ref.date)}</span>
+                    <button onclick="deleteReflection(${ref.id})" class="text-slate-400 hover:text-red-500 text-xs">🗑️</button>
+                  </div>
+                  <p class="text-xs font-extrabold text-blue-800 bg-blue-50 px-2.5 py-1 rounded-lg">対象：${escapeHtml(ref.targetText)}</p>
+                  <p class="text-xs text-slate-700 leading-relaxed">${escapeHtml(ref.comment)}</p>
+                  <div class="bg-sky-50/80 border border-blue-100 rounded-2xl p-2.5 flex items-start gap-2.5">
+                    ${renderCompatanSvg(ref.rating, 'w-12 h-12')}
+                    <p class="text-xs text-blue-950 font-medium leading-relaxed">${escapeHtml(ref.compatanReply)}</p>
+                  </div>
+                </div>
+              `).join('')}
+            </div>
+          ` : ''}
+        </div>
+      `;
+    }
+
+    function renderCalendarScreen() {
+      const year = state.calYear;
+      const month = state.calMonth;
+      const firstDay = new Date(year, month, 1).getDay();
+      const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+      let cellsHtml = '';
+      for (let i = 0; i < firstDay; i++) {
+        cellsHtml += `<div class="h-12"></div>`;
+      }
+      for (let d = 1; d <= daysInMonth; d++) {
+        const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+        const isSelected = state.selectedCalDate === dateStr;
+        const isToday = dateStr === getTodayDate();
+
+        const hasStudy = state.studyTasks.some(t => (t.date || getTodayDate()) === dateStr);
+        const hasHw = state.homeworks.some(h => h.dueDate === dateStr);
+        const hasTest = state.tests.some(t => t.date === dateStr);
+        const hasRecord = state.scheduleEvents.some(e => e.date === dateStr) ||
+                          state.journalEntries.some(j => j.date === dateStr) ||
+                          state.sleepRecords.some(s => s.date === dateStr) ||
+                          state.moodRecords.some(m => m.date === dateStr);
+        const moodItem = state.moodRecords.find(m => m.date === dateStr);
+        const moodEmoji = moodItem ? (moodItem.mood === 'happy' ? '😊' : moodItem.mood === 'normal' ? '😐' : '😢') : '';
+
+        cellsHtml += `
+          <button onclick="selectCalDate('${dateStr}')" class="h-12 rounded-xl flex flex-col items-center justify-between py-1 transition border ${
+            isSelected ? 'bg-blue-600 text-white border-blue-600 shadow-xs' : isToday ? 'bg-blue-50 text-blue-800 border-blue-300 font-extrabold' : 'bg-white text-slate-700 border-transparent hover:bg-blue-50/50'
+          }">
+            <span class="text-xs font-bold leading-none">${d}</span>
+            <span class="text-[9px] leading-none h-2.5">${moodEmoji}</span>
+            <div class="flex gap-0.5">
+              ${hasStudy ? `<span class="w-1.5 h-1.5 rounded-full ${isSelected ? 'bg-white' : 'bg-blue-500'}"></span>` : ''}
+              ${hasHw ? `<span class="w-1.5 h-1.5 rounded-full bg-amber-400"></span>` : ''}
+              ${hasTest ? `<span class="w-1.5 h-1.5 rounded-full bg-rose-500"></span>` : ''}
+              ${hasRecord ? `<span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>` : ''}
+            </div>
+          </button>
+        `;
+      }
+
+      // 選択日の集約データ
+      const sel = state.selectedCalDate;
+      const dayStudies = state.studyTasks.filter(t => (t.date || getTodayDate()) === sel);
+      const dayHws = state.homeworks.filter(h => h.dueDate === sel);
+      const dayTests = state.tests.filter(t => t.date === sel);
+      const dayEvents = state.scheduleEvents.filter(e => e.date === sel);
+      const dayJournals = state.journalEntries.filter(j => j.date === sel);
+      const daySleep = state.sleepRecords.find(s => s.date === sel);
+      const dayMood = state.moodRecords.find(m => m.date === sel);
+
+      return `
+        <div class="space-y-4">
+          <!-- 月間カレンダーカード -->
+          <div class="bg-white p-4 rounded-3xl shadow-sm border border-blue-100">
+            <div class="flex items-center justify-between mb-3">
+              <button onclick="changeCalMonth(-1)" class="px-2.5 py-1 rounded-xl bg-blue-50 text-blue-700 font-bold text-xs">◀ 前月</button>
+              <h2 class="text-sm font-extrabold text-blue-950">${year}年 ${month + 1}月</h2>
+              <button onclick="changeCalMonth(1)" class="px-2.5 py-1 rounded-xl bg-blue-50 text-blue-700 font-bold text-xs">翌月 ▶</button>
+            </div>
+
+            <div class="grid grid-cols-7 text-center text-[10px] font-extrabold text-slate-400 mb-1">
+              <span class="text-rose-500">日</span><span>月</span><span>火</span><span>水</span><span>木</span><span>金</span><span class="text-blue-500">土</span>
+            </div>
+            <div class="grid grid-cols-7 gap-1">${cellsHtml}</div>
+
+            <div class="mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-center gap-3 text-[10px] font-bold text-slate-500">
+              <span><i class="inline-block w-2 h-2 rounded-full bg-blue-500 mr-1"></i>勉強</span>
+              <span><i class="inline-block w-2 h-2 rounded-full bg-amber-400 mr-1"></i>宿題</span>
+              <span><i class="inline-block w-2 h-2 rounded-full bg-rose-500 mr-1"></i>テスト</span>
+              <span><i class="inline-block w-2 h-2 rounded-full bg-emerald-400 mr-1"></i>記録・日記</span>
+            </div>
+          </div>
+
+          <!-- 日別手帳ページ（DAILY PAGE） -->
+          <div class="bg-white p-4 rounded-3xl shadow-sm border border-blue-100 space-y-3">
+            <div class="flex items-center justify-between border-b border-blue-50 pb-2">
+              <div>
+                <span class="text-[10px] font-extrabold text-blue-600 bg-blue-50 px-2 py-0.5 rounded">DAILY PAGE</span>
+                <h3 class="text-sm font-extrabold text-slate-800 mt-1">${sel} の手帳まとめ</h3>
+              </div>
+              <div class="text-right text-[11px] font-bold text-slate-600">
+                ${daySleep ? `💤 ${daySleep.hours}h ` : ''}
+                ${dayMood ? (dayMood.mood === 'happy' ? '😊' : dayMood.mood === 'normal' ? '😐' : '😢') : ''}
+              </div>
+            </div>
+
+            <!-- 予定書き込みフォーム -->
+            <form onsubmit="handleAddCalEvent(event)" class="flex gap-1.5">
+              <select id="calEventCategory" class="bg-blue-50 text-blue-800 text-xs font-bold rounded-xl px-2 py-2 outline-none border border-blue-100">
+                <option value="予定">予定</option>
+                <option value="学習">学習</option>
+                <option value="部活">部活</option>
+                <option value="検定・行事">検定・行事</option>
+              </select>
+              <input id="calEventTitle" type="text" placeholder="この日の予定を書き込む..." class="flex-1 bg-slate-50 text-slate-800 text-xs rounded-xl px-3 py-2 outline-none border border-slate-200" />
+              <button type="submit" class="px-3 py-2 bg-blue-600 text-white text-xs font-bold rounded-xl">追加</button>
+            </form>
+
+            <!-- 集約リスト -->
+            <div class="space-y-2 text-xs">
+              ${dayTests.map(t => `<div class="p-2.5 rounded-xl bg-rose-50 border border-rose-100 text-rose-900 font-bold">📕 【テスト】${escapeHtml(t.name)}（${escapeHtml(t.goal)}）</div>`).join('')}
+              ${dayHws.map(h => `
+                <div onclick="toggleHomework(${h.id})" class="p-2.5 rounded-xl bg-amber-50 border border-amber-100 text-amber-900 font-bold flex items-center gap-2 cursor-pointer">
+                  <span>${h.completed ? '☑️' : '⬜'}</span>
+                  <span class="${h.completed ? 'line-through opacity-60' : ''}">📙 【宿題締切】${escapeHtml(h.subject)}：${escapeHtml(h.title)}</span>
+                </div>
+              `).join('')}
+              ${dayStudies.map(s => `
+                <div onclick="toggleStudy(${s.id})" class="p-2.5 rounded-xl bg-blue-50 border border-blue-100 text-blue-900 font-bold flex items-center gap-2 cursor-pointer">
+                  <span>${s.completed ? '☑️' : '⬜'}</span>
+                  <span class="${s.completed ? 'line-through opacity-60' : ''}">📘 【勉強】${escapeHtml(s.subject)}：${escapeHtml(s.title)}</span>
+                </div>
+              `).join('')}
+              ${dayEvents.map(ev => `
+                <div class="p-2.5 rounded-xl bg-emerald-50 border border-emerald-100 text-emerald-900 font-bold flex items-center justify-between">
+                  <span>📗 【${escapeHtml(ev.category)}】${escapeHtml(ev.title)}</span>
+                  <button onclick="deleteCalEvent(${ev.id})" class="text-slate-400 hover:text-red-500">✕</button>
+                </div>
+              `).join('')}
+              ${dayJournals.map(j => `
+                <div class="p-2.5 rounded-xl bg-sky-50 border border-blue-100">
+                  <span class="text-[10px] font-bold text-blue-700">${escapeHtml(j.tag)} (${escapeHtml(j.time)})</span>
+                  <p class="text-slate-700 mt-0.5">${escapeHtml(j.content)}</p>
+                </div>
+              `).join('')}
+              ${(dayTests.length + dayHws.length + dayStudies.length + dayEvents.length + dayJournals.length === 0) ? `
+                <p class="text-center text-slate-400 py-4">この日の予定・記録はまだありません</p>
+              ` : ''}
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderRecordScreen() {
+      const todaySleep = state.sleepRecords.find(r => r.date === getTodayDate());
+      const defaultSleep = todaySleep ? todaySleep.hours : 7.0;
+
+      return `
+        <div class="space-y-4">
+          <div class="bg-white p-1.5 rounded-2xl shadow-sm border border-blue-100 grid grid-cols-3 gap-1">
+            ${[
+              { id: 'sleep', label: '💤 睡眠記録' },
+              { id: 'mood', label: '😊 気分記録' },
+              { id: 'ai', label: '🤖 AI相談' }
+            ].map(t => `
+              <button onclick="setRecordSubTab('${t.id}')" class="py-2 text-xs font-extrabold rounded-xl transition ${
+                state.recordSubTab === t.id ? 'bg-blue-600 text-white shadow-xs' : 'text-slate-500 hover:bg-blue-50'
+              }">${t.label}</button>
+            `).join('')}
+          </div>
+
+          ${state.recordSubTab === 'sleep' ? `
+            <div class="bg-white p-4 rounded-2xl shadow-sm border border-blue-100 space-y-3">
+              <div>
+                <h2 class="text-base font-extrabold text-slate-800">💤 睡眠時間の記録</h2>
+                <p class="text-xs text-slate-500">直近7日間の睡眠バランスを棒グラフでチェック！</p>
+              </div>
+              <form onsubmit="handleSaveSleep(event)" class="flex items-center gap-2">
+                <input id="sleepHoursInput" type="number" step="0.5" min="0" max="24" value="${defaultSleep}" class="w-28 bg-blue-50 text-blue-900 font-extrabold text-base rounded-xl px-3 py-2 outline-none border border-blue-200 text-center" />
+                <span class="text-sm font-bold text-slate-600">時間</span>
+                <button type="submit" class="flex-1 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl transition">今日の睡眠を保存</button>
+              </form>
+            </div>
+
+            <div class="bg-white p-4 rounded-2xl shadow-sm border border-blue-100">
+              <h3 class="text-xs font-extrabold text-slate-700 mb-4">📊 直近7日間の睡眠時間グラフ</h3>
+              <div class="h-44 flex items-end justify-between gap-2 pt-4 px-1 border-b border-slate-200">
+                ${state.sleepRecords.map(rec => {
+                  const pct = Math.min(100, Math.round((rec.hours / 10) * 100));
+                  const isToday = rec.date === getTodayDate();
+                  return `
+                    <div class="flex-1 flex flex-col items-center h-full justify-end">
+                      <span class="text-[10px] font-extrabold text-blue-700 mb-1">${rec.hours}h</span>
+                      <div class="w-full max-w-[32px] bg-blue-50 rounded-t-xl h-32 flex items-end overflow-hidden">
+                        <div style="height: ${pct}%" class="w-full rounded-t-xl transition-all ${isToday ? 'bg-gradient-to-t from-blue-600 to-sky-400' : 'bg-blue-300'}"></div>
+                      </div>
+                    </div>
+                  `;
+                }).join('')}
+              </div>
+              <div class="flex justify-between gap-2 px-1 pt-2">
+                ${state.sleepRecords.map(rec => `<span class="flex-1 text-center text-[10px] font-bold text-slate-500">${formatShortDate(rec.date)}</span>`).join('')}
+              </div>
+            </div>
+          ` : ''}
+
+          ${state.recordSubTab === 'mood' ? `
+            <form onsubmit="handleSaveMood(event)" class="bg-white p-4 rounded-2xl shadow-sm border border-blue-100 space-y-3">
+              <div>
+                <h2 class="text-base font-extrabold text-slate-800">😊 今日の気分を記録しよう</h2>
+                <p class="text-xs text-slate-500">手帳カレンダーにも絵文字が自動反映されます！</p>
+              </div>
+              <div class="grid grid-cols-3 gap-2.5">
+                ${[
+                  { id: 'happy', emoji: '😊', label: 'いい感じ！' },
+                  { id: 'normal', emoji: '😐', label: 'ふつう' },
+                  { id: 'sad', emoji: '😢', label: 'つらい・疲れ' }
+                ].map(item => `
+                  <button type="button" onclick="selectMood('${item.id}')" class="py-3 rounded-2xl border flex flex-col items-center gap-1 transition ${
+                    state.selectedMood === item.id ? 'bg-blue-50 border-blue-500 ring-2 ring-blue-200' : 'bg-slate-50 border-slate-200'
+                  }">
+                    <span class="text-3xl">${item.emoji}</span>
+                    <span class="text-[11px] font-extrabold text-slate-700">${item.label}</span>
+                  </button>
+                `).join('')}
+              </div>
+              <input id="moodNoteInput" type="text" placeholder="一言メモ（例：小テスト頑張った！部活が楽しかった）" class="w-full bg-slate-50 text-slate-800 text-xs rounded-xl px-3.5 py-2.5 outline-none border border-slate-200" />
+              <button type="submit" class="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm rounded-xl transition">今日の気分を保存する</button>
+            </form>
+
+            <div class="space-y-2">
+              ${state.moodRecords.map(rec => `
+                <div class="bg-white p-3.5 rounded-2xl border border-blue-100 flex items-center gap-3">
+                  <span class="text-2xl">${rec.mood === 'happy' ? '😊' : rec.mood === 'normal' ? '😐' : '😢'}</span>
+                  <div>
+                    <span class="text-[11px] font-bold text-blue-600">${escapeHtml(rec.date)}</span>
+                    <p class="text-xs font-bold text-slate-700 mt-0.5">${escapeHtml(rec.note || '気分を記録しました')}</p>
+                  </div>
+                </div>
+              `).join('')}
+            </div>
+          ` : ''}
+
+          ${state.recordSubTab === 'ai' ? `
+            <div class="bg-white rounded-3xl shadow-sm border border-blue-100 overflow-hidden flex flex-col h-[460px]">
+              <div class="bg-gradient-to-r from-blue-600 to-sky-500 text-white px-4 py-3">
+                <h2 class="text-sm font-extrabold">🤖 SHOSUKE AI相談サポート</h2>
+                <p class="text-[10px] text-blue-100">勉強法・検定・進路・学校生活の悩みを相談しよう</p>
+              </div>
+              <div id="aiChatScroll" class="flex-1 p-3.5 overflow-y-auto space-y-3 bg-sky-50/30">
+                ${state.chatMessages.map(msg => `
+                  <div class="flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}">
+                    <div class="max-w-[82%] px-3.5 py-2.5 rounded-2xl text-xs leading-relaxed whitespace-pre-line ${
+                      msg.sender === 'user' ? 'bg-blue-600 text-white rounded-br-none font-medium' : 'bg-white text-slate-800 border border-blue-100 rounded-bl-none'
+                    }">${escapeHtml(msg.text)}</div>
+                  </div>
+                `).join('')}
+              </div>
+              <div class="px-3 py-1.5 bg-white border-t border-blue-50 flex gap-1.5 overflow-x-auto no-scrollbar">
+                ${['テスト勉強のコツは？', 'やる気が出ない…', '検定に合格したい！', '睡眠と集中力について'].map(q => `
+                  <button type="button" onclick="sendAiChat('${q}')" class="shrink-0 text-[10px] font-bold px-2.5 py-1 rounded-full bg-blue-50 text-blue-700 hover:bg-blue-100">${q}</button>
+                `).join('')}
+              </div>
+              <form onsubmit="event.preventDefault(); sendAiChat();" class="p-2.5 bg-white border-t border-blue-100 flex gap-2">
+                <input id="aiChatInput" type="text" placeholder="AIに相談メッセージを送る..." class="flex-1 bg-slate-50 text-slate-800 text-xs rounded-xl px-3 py-2.5 outline-none border border-slate-200" />
+                <button type="submit" class="px-3.5 py-2.5 bg-blue-600 text-white text-xs font-bold rounded-xl">送信</button>
+              </form>
+            </div>
+          ` : ''}
+        </div>
+      `;
+    }
+
+    // ------------------------------------------
+    // 7. 全体描画エントリーポイント
+    // ------------------------------------------
+    function renderApp() {
+      const navItems = [
+        { id: 'home', label: 'ホーム', icon: '🏠' },
+        { id: 'study', label: '勉強', icon: '📘' },
+        { id: 'homework', label: '宿題', icon: '📙' },
+        { id: 'test', label: 'テスト', icon: '🎯' },
+        { id: 'calendar', label: '手帳', icon: '🗓️' },
+        { id: 'record', label: '記録', icon: '📊' }
+      ];
+
+      document.getElementById('bottomNav').innerHTML = navItems.map(item => {
+        const active = state.activeTab === item.id;
+        return `
+          <button onclick="setTab('${item.id}')" class="flex flex-col items-center justify-center py-1.5 rounded-xl transition ${
+            active ? 'text-blue-600 bg-blue-50/90 font-extrabold' : 'text-slate-400 hover:text-slate-600 font-medium'
+          }">
+            <span class="text-sm leading-none mb-0.5">${item.icon}</span>
+            <span class="text-[10px]">${item.label}</span>
+          </button>
+        `;
+      }).join('');
+
+      const mainEl = document.getElementById('mainContent');
+      if (state.activeTab === 'home') mainEl.innerHTML = renderHomeScreen();
+      else if (state.activeTab === 'study') mainEl.innerHTML = renderStudyScreen();
+      else if (state.activeTab === 'homework') mainEl.innerHTML = renderHomeworkScreen();
+      else if (state.activeTab === 'test') mainEl.innerHTML = renderTestScreen();
+      else if (state.activeTab === 'calendar') mainEl.innerHTML = renderCalendarScreen();
+      else if (state.activeTab === 'record') {
+        mainEl.innerHTML = renderRecordScreen();
+        const scrollEl = document.getElementById('aiChatScroll');
+        if (scrollEl) scrollEl.scrollTop = scrollEl.scrollHeight;
+      }
+    }
+
+    // 初期描画実行
+    renderApp();
+  </script>
+</body>
+</html>
